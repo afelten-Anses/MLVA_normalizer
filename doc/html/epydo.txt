@@ -1,0 +1,5 @@
+﻿FICHIER EN QUARANTAINE
+
+
+Le fichier "MLVA_normalizer.zip->epydoc.js" directement attaché à ce message ou inclus dans un fichier zip ou archive, a été supprimé. L'extension de ce fichier n'est pas autorisée par les règles de sécurité de l’AFSSA. 
+The file "MLVA_normalizer.zip->epydoc.js" directly attached to this message or included in an attached zip or archive file has been removed. Its extension is not allowed by the AFSSA security rules

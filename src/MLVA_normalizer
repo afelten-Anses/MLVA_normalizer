@@ -1,0 +1,514 @@
+#!/usr/bin/python
+# -*- coding: iso-8859-1 -*-
+import os, sys
+import argparse
+import re
+
+
+__doc__="""
+MLVA_normalizer is a script conceived to normalize MLVA (Multiple Loci VNTR Analysis) results and allow data exchanges between laboratories. Indeed even if MLVA is a typing tool used at today to characterize several major pathogens as Brucella, Mycobacterium tuberculosis or Salmonella, the results obtained are instrument dependent and cannot be compared between laboratories without normalization. This script is conceived to be applied to any bacterial genera and is not depending from the MLVA protocol used.
+"""
+
+def get_parser():
+	"""
+	Parse arguments
+	@return: arguments list
+	@rtype: parser object
+	"""
+	parser = argparse.ArgumentParser(description='MLVA_normalizer is a script conceived to normalize MLVA (Multiple Loci VNTR Analysis) results and allow data exchanges between laboratories.')
+	parser.add_argument('-r', action="store", dest='ref', 
+						type=str, required=True, help='input file, containing the data of the panel of the reference strain')
+	parser.add_argument('-d', action="store", dest='mlva', 
+						type=str, required=True, help='input file, containing data for the sample strain')
+	parser.add_argument('-o', action="store", dest='output', 
+						type=str, default='output', help='output prefix name (default:output)')
+	return parser
+
+
+
+
+
+def open_file(Arguments):
+	"""
+	Read files and converting to matrix 
+	@param Arguments: input files
+	@type Arguments: input
+	@return: matrix files and length columns to matrix
+	@rtype: list
+	"""
+	# read ref file
+	file1=open(Arguments.ref,'rb')
+	lines = file1.readlines()
+	ncol=len(lines)
+	matrix=[]
+	for i in range(0,ncol):
+		matrix.append(lines[i].replace('\n','').replace(',','.').replace('"','').split("\t"))
+	# read mlva file
+	file2=open(Arguments.mlva,'rb')
+	lines = file2.readlines()
+	ncoln=len(lines)
+	matrix_tampo=[]
+	for i in range(0,ncoln):
+		matrix_tampo.append(lines[i].replace('\n','').replace(',','.').replace('"','').split("\t"))
+	file1.close()
+	file2.close()
+	matrixn=[]
+	for i in range(0, len(matrix_tampo)):
+		matrixn.append([])
+	matrixn[0].extend(matrix_tampo[0])
+	matrixn[1].extend(matrix_tampo[1])
+	for i in range(2,len(matrix_tampo)):
+		matrixn[i].append(matrix_tampo[i][0])
+	ij=1
+	jj=0
+	while ij < len(matrix_tampo[0]):
+		if matrix[0][jj] != matrix_tampo[0][ij]:
+			ab=1
+			while ab < len(matrix_tampo[0]):
+				if matrix[0][jj] == matrix_tampo[0][ab]:
+					break
+				ab += 1
+			for i in range(2,len(matrix_tampo)):
+				matrixn[i].extend([matrix_tampo[i][ab]])
+		else:
+			for i in range(2,len(matrix_tampo)):
+				matrixn[i].extend([matrix_tampo[i][ij]])
+		ij += 1
+		if matrix[0][3+jj] == '':
+			jj += 4
+		else:
+			jj +=5
+	return matrix, matrixn, ncol, ncoln
+
+
+
+
+
+def imin_imax(matrix,matrixn,k,ncol):
+	"""
+	Calculate n Repeated Unit(RU) min and maxi in to matrix
+	@param matrix: data input file called REF [-r REF]
+	@param matrixn: data input file called MLVA [-d MLVA]
+	@param k: variable for a loop for reading in the matrix
+	@param ncol: length columns to matrix
+	@type matrix: list
+	@type matrixn: list
+	@type k: float
+	@type ncol: float
+	@return: n TRs max and n TRs min in to matrix
+	@rtype: float 
+	"""
+	imin=0
+	imax=0
+	if matrix[0][3+k] == '':
+		imin = float(matrix[2][2+k])
+		imax = float(matrix[2][2+k])
+		for i in range(2,ncol):
+		    if float(matrix[i][2+k]) > 0:
+		        if float(matrix[i][2+k]) < imin:
+		            imin = float(matrix[i][2+k])
+		for i in range(2,ncol):
+		    if float(matrix[i][2+k]) > imax:
+		        imax = float(matrix[i][2+k])
+	return imin, imax
+
+
+
+
+
+
+
+def normalization_table_for_two_pattern(matrix,matrixn,k,ncol):
+	"""
+	Normalization table for 2 patterns to VNTR
+	@param matrix: data input file called REF [-r REF]
+	@param matrixn: data input file called MLVA [-d MLVA]
+	@param k: variable for a loop for reading in the matrix
+	@param ncol: length columns to matrix
+	@type matrix: list
+	@type matrixn: list
+	@type k: float
+	@type ncol: float
+	@return: list TR1 and list TR2  and a list size ref average and a list size MLVA average
+	@rtype: list
+	"""
+	if matrix[0][3+k] != '':
+	    TRs1=[]
+	    TRs2=[]
+	    m_r=[]
+	    m_M = []
+	    Lm_r=[]
+	    Lm_M = []
+	    z = 0
+	    a = 0
+	    MLVA = 0
+	    real = 0
+	    for i in range(2,ncol):
+	        m_M.append(float(matrix[i][1+k]))
+	        TRs1.append(float(matrix[i][2+k]))
+	        TRs2.append(float(matrix[i][3+k]))
+	        m_r.append(float(matrix[i][4+k]))
+	    for i in range(len(m_r)) :                  
+	        m=i
+	        for j in range(i+1,len(m_r)) :
+	            if m_r[m]> m_r[j]:  
+	                m = j
+	        m_r[m],m_r[i] = m_r[i],m_r[m]
+	        TRs1[m],TRs1[i] = TRs1[i],TRs1[m]
+	        TRs2[m],TRs2[i] = TRs2[i],TRs2[m]
+	        m_M[m],m_M[i] = m_M[i],m_M[m]
+	    for i in range(0,len(m_r)-1):
+	        if  m_r[i] != m_r[i+1] and ((TRs2[i]*TRs1[i])+TRs2[i])!= ((TRs2[i+1]*TRs1[i+1])+TRs2[i+1]):
+	            z -= 1
+	            if z == 1:
+	                z = 0
+	                Lm_M.append(MLVA/a)
+	                Lm_r.append(real/a)
+	                a = 0
+	                MLVA = 0
+	                real = 0
+	            else:
+	                Lm_M.append(m_M[i])
+	                Lm_r.append(m_r[i])
+	        else:
+				real += m_r[i]
+				MLVA += m_M[i]
+				a += 1
+				z = 2
+	    z -=1
+	    if z == 1:
+	        z = 0
+	        Lm_M.append(MLVA/a)
+	        Lm_r.append(real/a)
+	        a = 0
+	        MLVA = 0
+	        real = 0
+	    else:
+	        Lm_M.append(m_M[len(TRs1)-1])
+	        Lm_r.append(m_r[len(TRs1)-1])
+	return TRs1, TRs2, Lm_M, Lm_r, m_r
+
+
+
+
+
+
+
+def normalization_table_for_one_pattern(matrix,matrixn,imin,imax,k,ncol):
+	"""
+	Normalization table for 1 patterns to VNTR
+	@param matrix: data input file called REF [-r REF]
+	@param matrixn: data input file called MLVA [-d MLVA]
+	@param k: variable for a loop for reading in the matrix
+	@param ncol: length columns to matrix
+	@param imin: n TRs min in to matrix
+	@param imax: n TRs max in to matrix
+	@type imin: float
+	@type imax: float
+	@type matrix: list
+	@type matrixn: list
+	@type k: float
+	@type ncol: float
+	@return: list RU and a list size ref average 
+	@rtype: list
+	"""
+	if matrix[0][3+k] == '':
+	    Lm_M = []
+	    Lm_r = []
+	    L_ur = []
+	    m_r = []
+	    z = 0
+	    for j in range(int(imin),int(imax)+1):
+	        MLVA = 0
+	        real = 0
+	        a = 0
+	        for i in range(2,ncol):
+	            if imin + z == float(matrix[i][2+k]):
+	                MLVA += float(matrix[i][1+k])
+	                real += float(matrix[i][3+k])
+	                m_r.append(float(matrix[i][3+k]))
+	                a += 1
+	                L_ur.append(imin + z)
+	        if a != 0:
+	            Lm_M.append(MLVA/a)
+	            Lm_r.append(real/a)
+	        z += 1
+	return L_ur,  Lm_M, Lm_r, m_r
+
+
+
+
+
+
+
+def compensation(matrix,matrixn,k,ncol, imin, imax):
+	"""
+	Compensation table 
+	@param matrix: data input file called REF [-r REF]
+	@param matrixn: data input file called MLVA [-d MLVA]
+	@param k: variable for a loop for reading in the matrix
+	@param ncol: length columns to matrix
+	@param imin: n TRs min in to matrix
+	@param imax: n TRs max in to matrix
+	@type imin: float
+	@type imax: float
+	@type matrix: list
+	@type matrixn: list
+	@type k: float
+	@type ncol: float
+	@return: list compensation table
+	@rtype: list
+	"""
+	if matrix[0][3+k] != '':
+		Lm_M=normalization_table_for_two_pattern(matrix,matrixn,k,ncol)[2]
+		Lm_r=normalization_table_for_two_pattern(matrix,matrixn,k,ncol)[3]
+	else:
+		Lm_M=normalization_table_for_one_pattern(matrix,matrixn,imin,imax,k,ncol)[1]
+		Lm_r=normalization_table_for_one_pattern(matrix,matrixn,imin,imax,k,ncol)[2]
+	compensations = []
+	for i in range(0,len(Lm_M)):
+	    compensations.append(Lm_M[i]-Lm_r[i])
+	compensation_m = []
+	for i in range(0,len(compensations)-1):
+	    compensation_m.append((compensations[i]+compensations[i+1])/2)
+	return compensation_m, compensations
+
+
+
+
+
+
+
+
+def table_de_correction(matrix_norma,matrix,matrixn,k,o,ncoln, ncol, imin, imax, compensation_m, compensations):
+	"""
+	Correction table 
+	@param matrix: data input file called REF [-r REF]
+	@param matrixn: data input file called MLVA [-d MLVA]
+	@param k: variable for a loop for reading in the matrix
+	@param ncol: length columns to matrix
+	@param imin: n TRs min in to matrix
+	@param imax: n TRs max in to matrix
+	@param matrix_norma: data normalization in to matrix
+	@param o: variable for a loop for reading in the matrixn
+	@param ncoln: length columns to matrixn
+	@param compensation_m: data average compensation
+	@type imin: float
+	@type imax: float
+	@type matrix: list
+	@type matrixn: list
+	@type k: float
+	@type ncol: float
+	@type matrix_norma: list
+	@type o: float
+	@type ncoln: float
+	@type compensation_m: list
+	@return: list correction table
+	@rtype: list
+	"""
+	offset = float(re.findall("([0-9]+[,.]?[0-9]*)", matrix[0][1+k])[0])
+	ur = float(re.findall("([0-9]+[,.]?[0-9]*)", matrix[0][2+k])[0])
+	if matrix[0][3+k] != '':
+		TRs1=normalization_table_for_two_pattern(matrix,matrixn,k,ncol)[0]
+		TRs2=normalization_table_for_two_pattern(matrix,matrixn,k,ncol)[1]
+		Lm_M=normalization_table_for_two_pattern(matrix,matrixn,k,ncol)[2]
+		m_r=normalization_table_for_two_pattern(matrix,matrixn,k,ncol)[4]
+	else:
+		L_ur=normalization_table_for_one_pattern(matrix,matrixn,imin,imax,k,ncol)[0]
+		Lm_M=normalization_table_for_one_pattern(matrix,matrixn,imin,imax,k,ncol)[1]
+		m_r=normalization_table_for_one_pattern(matrix,matrixn,imin,imax,k,ncol)[3]
+	norma_MLVA=[]
+	for i in range(2,ncoln):
+		for j in range(0,len(Lm_M)):
+			if float(matrixn[i][1+o]) == 0:
+				norma_MLVA.append(0)
+				break		
+			elif (Lm_M[j] - 2) <= float(matrixn[i][1+o]) <= (Lm_M[j] + 2):
+				norma_MLVA.append(int(round(float(matrixn[i][1+o])-compensations[j])))
+				break
+			elif (Lm_M[0] - 2) >= float(matrixn[i][1+o]) :
+				norma_MLVA.append(int(round(float(matrixn[i][1+o])-compensations[0])))
+				break
+			elif (Lm_M[len(Lm_M)-1] + 2) <= float(matrixn[i][1+o]) :
+				norma_MLVA.append(int(round(float(matrixn[i][1+o])-compensations[len(compensations)-1])))
+				break
+			elif (Lm_M[j] + 2) <= float(matrixn[i][1+o]) <= (Lm_M[j + 1] - 2):
+				norma_MLVA.append(int(round(float(matrixn[i][1+o])-compensation_m[j])))
+				break
+	ur_real1=[]
+	ur_real2=[]
+	for i in range(0, len(norma_MLVA)):
+		x = 1
+		for j in range(0, len(m_r)):
+			if m_r[j]+2 >=norma_MLVA[i]>=m_r[j]-2:
+				if matrix[0][3+k] == '':
+					ur_real1.append(int(L_ur[j]))
+				else:
+					ur_real1.append(int(TRs1[j]))
+					ur_real2.append(int(TRs2[j]))
+				x = 1
+				break
+			elif norma_MLVA[i] == offset:
+				x = 0
+			elif norma_MLVA[i] == 0:
+				x = 2
+			else:
+				x = 5
+		if x == 5 :
+			if matrix[0][3+k] == '':
+				ur_real1.append('check')
+			else:
+				ur_real1.append('check')
+				ur_real2.append('check')
+		elif x == 2 :
+			if matrix[0][3+k] == '':
+				ur_real1.append("-2")
+			else:
+				ur_real1.append('-2')
+				ur_real2.append('-2')
+		elif x == 0 :
+			if matrix[0][3+k] == '':
+				ur_real1.append('0')
+			else:
+				ur_real1.append('0')
+				ur_real2.append('0')
+	matrix_norma.append(norma_MLVA)
+	if matrix[0][3+k] == '':
+		matrix_norma.append(ur_real1)
+	else:
+		matrix_norma.append(ur_real1)
+		matrix_norma.append("o")
+		matrix_norma.append(ur_real2)
+	return matrix_norma
+
+
+
+
+
+
+
+def profile_MLVA(matrix_norma):
+	"""
+	MLVA profil 
+	@param matrix_norma: data normalization in to matrix
+	@type matrix_norma: list
+	@return: list MLVA profile 
+	@rtype: list
+	"""
+	profile_MLVA=[]
+	for j in range(0,len(matrix_norma[1])):
+	    profil=[]
+	    h=0
+	    i=0
+	    while i+h < len(matrix_norma):
+	        if i <= len(matrix_norma)-4 and matrix_norma[i+2] == "o":
+	            profil.append(":".join([str(matrix_norma[i+1][j]), str(matrix_norma[i+3][j])]))
+	            h=4
+	            i+=2
+	        else:
+	            profil.append(str(matrix_norma[i+1][j]))
+	            h=0
+	            i+=2
+	    profile_MLVA.append(profil)
+	return profile_MLVA
+
+
+
+
+
+
+def writing_file(Arguments, matrix, matrixn, matrix_norma, profile_mlva):
+	"""
+	Writing output file
+	@param profile_mlva: MLVA profil
+	@param matrix_norma: data normalization in to matrix
+	@param Arguments: input files
+	@param matrix: data input file called REF [-r REF]
+	@param matrixn: data input file called MLVA [-d MLVA]
+	@type matrix: list
+	@type matrixn: list
+	@type Arguments: input
+	@type matrix_norma: list
+	@type profile_MLVA: list
+	@return: out close writing file
+	@rtype: out.close
+	"""
+	out = open(Arguments.output+".txt", "wb")
+	out.write(''+"\t")
+	i=0
+	while i < len(matrix[1]):
+	    if matrix[0][3+i] == '':
+	        out.write(matrix[0][0+i]+"\t")
+	        out.write(''+"\t")
+	        i+=4
+	    else:
+	        out.write(matrix[0][0+i]+"\t")
+	        out.write(''+"\t")
+	        out.write(''+"\t")
+	        i+=5
+	out.write("\n")
+	out.write("Strain\t")
+	i=0
+	while i < len(matrix_norma):
+		if i <= len(matrix_norma)-4 and matrix_norma[i+2] == "o":
+			out.write("Measured and corrected length\t")
+			out.write("Corrected tandem repeats 1\t")
+			out.write("Corrected tandem repeats 2\t")
+			i += 4
+		else:
+			out.write("Measured and corrected length\t")
+			out.write("Corrected tandem repeats\t")
+	        i +=2
+	out.write("MLVA profile\n")
+	for j in range(0,len(matrix_norma[1])):
+	    out.write(matrixn[j+2][0]+"\t")
+	    i=0
+	    while i < len(matrix_norma):
+	        if i <= len(matrix_norma)-4 and matrix_norma[i+2] == "o":
+	            out.write(str(matrix_norma[i][j])+"\t")
+	            out.write(str(matrix_norma[i+1][j])+"\t")
+	            out.write(str(matrix_norma[i+3][j])+"\t")
+	            i +=4
+	        else:
+	            out.write(str(matrix_norma[i][j])+"\t")
+	            out.write(str(matrix_norma[i+1][j])+"\t")
+	            i +=2
+	    out.write("_".join(profile_mlva[j]) +"\n")
+	out.close()
+
+
+
+#main function	
+def main():
+
+	parser=get_parser()	
+	#print parser.help if no arguments
+	if len(sys.argv)==1:
+		parser.print_help()
+		sys.exit(1)
+	Arguments=parser.parse_args()
+	
+
+	matrix_norma=[]
+	o=0 # variable to read several time VNTR in the file "a_normaliser"
+	k=0# variable to read several time VNTR in the file  "ref"
+	matrix=open_file(Arguments)[0]
+	matrixn=open_file(Arguments)[1]
+	ncol=open_file(Arguments)[2]
+	ncoln=open_file(Arguments)[3]
+	while k < len(matrix[1]):
+		imin=imin_imax(matrix,matrixn,k,ncol)[0]
+		imax=imin_imax(matrix,matrixn,k,ncol)[1]
+		compensation_m=compensation(matrix,matrixn,k,ncol, imin, imax)[0]
+		compensations=compensation(matrix,matrixn,k,ncol, imin, imax)[1]
+		matrix_norma=table_de_correction(matrix_norma,matrix,matrixn,k,o,ncoln, ncol, imin, imax, compensation_m, compensations)
+		o += 1
+		if matrix[0][3+k] == '':
+			k += 4
+		else:
+			k +=5
+	profile_mlva=profile_MLVA(matrix_norma)
+	writing_file(Arguments, matrix, matrixn, matrix_norma, profile_mlva)
+
+if __name__ == "__main__":
+	main()				

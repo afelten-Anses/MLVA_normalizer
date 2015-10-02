@@ -1,0 +1,13 @@
+script-MLVA_normalizer	script-MLVA_normalizer-module.html
+script-MLVA_normalizer.imin_imax	script-MLVA_normalizer-module.html#imin_imax
+script-MLVA_normalizer.get_parser	script-MLVA_normalizer-module.html#get_parser
+script-MLVA_normalizer.table_de_correction	script-MLVA_normalizer-module.html#table_de_correction
+script-MLVA_normalizer.__package__	script-MLVA_normalizer-module.html#__package__
+script-MLVA_normalizer.open_file	script-MLVA_normalizer-module.html#open_file
+script-MLVA_normalizer.compensation	script-MLVA_normalizer-module.html#compensation
+script-MLVA_normalizer.normalization_table_for_one_pattern	script-MLVA_normalizer-module.html#normalization_table_for_one_pattern
+script-MLVA_normalizer.__doc__	script-MLVA_normalizer-module.html#__doc__
+script-MLVA_normalizer.profile_MLVA	script-MLVA_normalizer-module.html#profile_MLVA
+script-MLVA_normalizer.normalization_table_for_two_pattern	script-MLVA_normalizer-module.html#normalization_table_for_two_pattern
+script-MLVA_normalizer.main	script-MLVA_normalizer-module.html#main
+script-MLVA_normalizer.writing_file	script-MLVA_normalizer-module.html#writing_file
