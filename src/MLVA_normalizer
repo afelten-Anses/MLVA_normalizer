@@ -352,26 +352,51 @@ def table_de_correction(matrix_norma,matrix,matrixn,k,o,ncoln, ncol, imin, imax,
 				x = 0
 			elif norma_MLVA[i] == 0:
 				x = 2
-			else:
+			elif norma_MLVA[i] < m_r[0] :
 				x = 5
+			elif norma_MLVA[i] > m_r[len(m_r)-1] :
+				x = 6
+			if j > 0 and j < len(m_r)-1 :
+				if m_r[j] < norma_MLVA[i] < m_r[j+1] :
+					if matrix[0][3+k] == '':
+						v1 = str(L_ur[j])
+						v2 = str(L_ur[j+1])
+					else:
+						v1a =str(TRs1[j])
+						v1b =str(TRs1[j+1])
+						v2a =str(TRs2[j])
+						v2b =str(TRs2[j+1])
+					x = 7
 		if x == 5 :
 			if matrix[0][3+k] == '':
-				ur_real1.append('check')
+				ur_real1.append("check( ]-∞;"+str(L_ur[0])+"[ )")
 			else:
-				ur_real1.append('check')
-				ur_real2.append('check')
+				ur_real1.append("check( ]-∞;"+str(L_ur[0])+"[ )")
+				ur_real2.append("check( ]-∞;"+str(L_ur[0])+"[ )")
+		elif x == 6 :
+			if matrix[0][3+k] == '':
+				ur_real1.append("check( ]"+str(L_ur[len(L_ur)-1])+";+∞[ )")
+			else:
+				ur_real1.append("check( ]"+str(L_ur[len(L_ur)-1])+";+∞[ )")
+				ur_real2.append("check( ]"+str(L_ur[len(L_ur)-1])+";+∞[ )")
+		elif x == 7 :
+			if matrix[0][3+k] == '':
+				ur_real1.append("check( ]"+v1+";"+v2+"[ )")
+			else:
+				ur_real1.append("check( ]"+v1a+";"+v1b+"[ )")
+				ur_real2.append("check( ]"+v2a+";"+v2b+"[ )")
 		elif x == 2 :
 			if matrix[0][3+k] == '':
-				ur_real1.append("-2")
+				ur_real1.append(-2)
 			else:
-				ur_real1.append('-2')
-				ur_real2.append('-2')
+				ur_real1.append(-2)
+				ur_real2.append(-2)
 		elif x == 0 :
 			if matrix[0][3+k] == '':
-				ur_real1.append('0')
+				ur_real1.append(0)
 			else:
-				ur_real1.append('0')
-				ur_real2.append('0')
+				ur_real1.append(0)
+				ur_real2.append(0)
 	matrix_norma.append(norma_MLVA)
 	if matrix[0][3+k] == '':
 		matrix_norma.append(ur_real1)
@@ -402,9 +427,16 @@ def profile_MLVA(matrix_norma):
 	    i=0
 	    while i+h < len(matrix_norma):
 	        if i <= len(matrix_norma)-4 and matrix_norma[i+2] == "o":
-	            profil.append(":".join([str(matrix_norma[i+1][j]), str(matrix_norma[i+3][j])]))
-	            h=4
-	            i+=2
+				if (matrix_norma[i+1][j] == "check" or matrix_norma[i+1][j] > 9 or matrix_norma[i+1][j] == -2) and (matrix_norma[i+3][j] == "check" or matrix_norma[i+3][j] > 9 or matrix_norma[i+3][j] == -2 ):
+					profil.append(str(matrix_norma[i+1][j]) + str(matrix_norma[i+3][j]))
+				elif (matrix_norma[i+1][j] == "check" or matrix_norma[i+1][j] > 9 or matrix_norma[i+1][j] == -2) and 0 <= matrix_norma[i+3][j] < 10:
+					profil.append(str(matrix_norma[i+1][j]) + "0" + str(matrix_norma[i+3][j]))
+				elif 0 <= matrix_norma[i+1][j] < 10 and (matrix_norma[i+3][j] == "check" or matrix_norma[i+3][j] > 9 or matrix_norma[i+3][j] == -2 ):
+					profil.append("0"+str(matrix_norma[i+1][j]) + str(matrix_norma[i+3][j]))
+				elif 0 <= matrix_norma[i+1][j] < 10 and 0 <= matrix_norma[i+3][j] < 10:
+					profil.append("0"+str(matrix_norma[i+1][j]) + "0" + str(matrix_norma[i+3][j]))
+				h=4
+				i+=2
 	        else:
 	            profil.append(str(matrix_norma[i+1][j]))
 	            h=0
@@ -473,7 +505,7 @@ def writing_file(Arguments, matrix, matrixn, matrix_norma, profile_mlva):
 	            out.write(str(matrix_norma[i][j])+"\t")
 	            out.write(str(matrix_norma[i+1][j])+"\t")
 	            i +=2
-	    out.write("_".join(profile_mlva[j]) +"\n")
+	    out.write("-".join(profile_mlva[j]) +"\n")
 	out.close()
 
 
